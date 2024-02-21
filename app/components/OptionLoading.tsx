@@ -1,7 +1,6 @@
+import { Skeleton } from "@chakra-ui/react";
 import React from "react";
 
-interface nameProps {}
-
-export function name(props: nameProps) {
-  return <div></div>;
+export function OptionLoading() {
+  return <Skeleton height="40px" marginTop="16px" marginBottom="16px" />;
 }

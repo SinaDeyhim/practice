@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import OptionsDetail from "./OptionsDetail";
-import { Flex, Text } from "@chakra-ui/react";
+import { Flex, MenuButton, MenuItem, Text } from "@chakra-ui/react";
 import { options, supported_assets } from "./payload";
 import { DropDown } from "./DropDown";
+import { getAllAssets, getInstruments } from "../utils/api-utils";
+import { OptionLoading } from "./OptionLoading";
 
 export interface Asset {
   currency: string;
@@ -44,45 +46,93 @@ export interface Instrument {
 }
 
 const OptionContainer = () => {
-  const [assets, setAssets] = useState<Asset[]>(supported_assets);
-  const [selectedAsset, setSelectedAsset] = useState<Asset>(assets[0]);
-  const [instruments, setInstruments] = useState<Instrument[]>(options);
-  const [selectedInstrument, setSelectedInstrument] = useState<Instrument>(
-    options[0]
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | undefined>();
+  const [instruments, setInstruments] = useState<Instrument[]>([]);
+  const [selectedInstrument, setSelectedInstrument] = useState<
+    Instrument | undefined
+  >();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getAllAssets();
+        const filteredAssets = data.result.filter(
+          (asset: Asset) => asset.currency !== "USDC"
+        );
+
+        setAssets(filteredAssets);
+        setSelectedAsset(filteredAssets[0]);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchInstrumentData = async () => {
+      try {
+        if (selectedAsset) {
+          const data = await getInstruments(selectedAsset.currency);
+          setInstruments(data.result);
+          setSelectedInstrument(data.result[0]);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchInstrumentData();
+  }, [selectedAsset]);
+
+  const handleAssetChange = useCallback(
+    (asset: Asset) => () => {
+      setSelectedAsset(asset);
+    },
+    []
   );
 
-  const handleAssetChange = useCallback((asset: Asset) => {
-    setSelectedAsset(asset);
+  const handleInstrumentChange = useCallback((instrument: Instrument) => {
+    setSelectedInstrument(instrument);
   }, []);
 
-  const handleInstrumentChange = useCallback((instrumentName: string) => {
-    const instrument = instruments.find(
-      (ins) => ins.instrument_name === instrumentName
-    );
-    if (instrument) {
-      setSelectedInstrument(instrument);
-    }
-  }, []);
+  const assetOptions = useMemo(() => {
+    return assets.map((asset) => (
+      <MenuItem key={asset.currency} onClick={handleAssetChange(asset)}>
+        {asset.currency}
+      </MenuItem>
+    ));
+  }, [assets, handleAssetChange]);
 
   return (
     <>
-      <Flex alignItems="center" height="100%">
-        <DropDown<Asset, "currency">
-          items={assets}
-          keyProp="currency"
-          onSelect={handleAssetChange}
-          selectedItem={selectedAsset}
+      {selectedAsset ? (
+        <Flex alignItems="center" height="100%">
+          <DropDown
+            items={assetOptions}
+            selectedItemLabel={selectedAsset.currency}
+          />
+          <Text fontSize="md" marginStart="8px" align="center">
+            is currently worth $
+            {parseFloat(selectedAsset.spot_price).toFixed(2)}
+          </Text>
+        </Flex>
+      ) : (
+        <OptionLoading />
+      )}
+
+      {instruments.length && selectedAsset && selectedInstrument ? (
+        <OptionsDetail
+          selectedAsset={selectedAsset}
+          instruments={instruments}
+          selectedInstrument={selectedInstrument}
+          onInsturmentChange={handleInstrumentChange}
         />
-        <Text fontSize="md" marginStart="8px" align="center">
-          is currently worth ${parseFloat(selectedAsset.spot_price).toFixed(2)}
-        </Text>
-      </Flex>
-      <OptionsDetail
-        selectedAsset={selectedAsset}
-        instruments={instruments}
-        selectedInstrument={selectedInstrument}
-        onInsturmentChange={handleInstrumentChange}
-      />
+      ) : (
+        <OptionLoading />
+      )}
     </>
   );
 };
