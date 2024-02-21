@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import OptionsDetail from "./OptionsDetail";
 import { Box, Flex, MenuItem, Text } from "@chakra-ui/react";
@@ -74,6 +80,14 @@ const OptionContainer = () => {
     };
 
     fetchData();
+
+    const poll = setInterval(() => {
+      fetchData();
+    }, 10000);
+
+    return () => {
+      clearTimeout(poll);
+    };
   }, []);
 
   useEffect(() => {

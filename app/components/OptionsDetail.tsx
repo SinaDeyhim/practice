@@ -27,7 +27,6 @@ const OptionsDetail = ({
   const [expiry, setExpiry] = useState(
     selectedInstrument.option_details.expiry
   );
-
   const priceDirection = useMemo(() => {
     return selectedInstrument.option_details.option_type === "C"
       ? " up"
@@ -59,10 +58,24 @@ const OptionsDetail = ({
     return options;
   }, [instruments, selectedAsset.currency]);
 
+  const handleExpiryChange = useCallback(
+    (expiry: number) => {
+      const prevIns: Instrument = selectedInstrument;
+      setExpiry(expiry);
+      const ins = optionsMap.get(expiry);
+      if (ins?.length) {
+        // const preOp = ins.find((in) => in.option_details.strike === prevIns.option_details.strike);
+
+        onInsturmentChange(ins[0]);
+      }
+    },
+    [instruments]
+  );
+
   const expiryOptions = useMemo(() => {
     const options = Array.from(optionsMap.keys()).sort();
     return options.map((expiry) => (
-      <MenuItem key={expiry} onClick={() => setExpiry(expiry)}>
+      <MenuItem key={expiry} onClick={() => handleExpiryChange(expiry)}>
         {convertEpochToMonthDay(expiry)}
       </MenuItem>
     ));
