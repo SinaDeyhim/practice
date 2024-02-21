@@ -3,11 +3,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import OptionsDetail from "./OptionsDetail";
-import { Flex, MenuButton, MenuItem, Text } from "@chakra-ui/react";
-import { options, supported_assets } from "./payload";
+import { Box, Flex, MenuItem, Text } from "@chakra-ui/react";
 import { DropDown } from "./DropDown";
 import { getAllAssets, getInstruments } from "../utils/api-utils";
 import { OptionLoading } from "./OptionLoading";
+import { OptionCard } from "./OptionCard";
 
 export interface Asset {
   currency: string;
@@ -47,8 +47,11 @@ export interface Instrument {
 
 const OptionContainer = () => {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState<Asset | undefined>();
-  const [instruments, setInstruments] = useState<Instrument[]>([]);
+  const [instrumentsMap, setInstrumentsMap] = useState<
+    Record<string, Instrument[]>
+  >({});
   const [selectedInstrument, setSelectedInstrument] = useState<
     Instrument | undefined
   >();
@@ -64,7 +67,9 @@ const OptionContainer = () => {
         setAssets(filteredAssets);
         setSelectedAsset(filteredAssets[0]);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching assets:", error);
+      } finally {
+        setIsLoadingAssets(false);
       }
     };
 
@@ -73,19 +78,33 @@ const OptionContainer = () => {
 
   useEffect(() => {
     const fetchInstrumentData = async () => {
+      if (!selectedAsset) return;
+
+      if (instrumentsMap[selectedAsset.currency]) {
+        // Use cached data if available
+        setIsLoadingAssets(false);
+        setSelectedInstrument(instrumentsMap[selectedAsset.currency][0]);
+        return;
+      }
+
+      setIsLoadingAssets(true);
+
       try {
-        if (selectedAsset) {
-          const data = await getInstruments(selectedAsset.currency);
-          setInstruments(data.result);
-          setSelectedInstrument(data.result[0]);
-        }
+        const data = await getInstruments(selectedAsset.currency);
+        setInstrumentsMap((prevMap) => ({
+          ...prevMap,
+          [selectedAsset.currency]: data.result,
+        }));
+        setSelectedInstrument(data.result[0]);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching instruments:", error);
+      } finally {
+        setIsLoadingAssets(false);
       }
     };
 
     fetchInstrumentData();
-  }, [selectedAsset]);
+  }, [selectedAsset, instrumentsMap]);
 
   const handleAssetChange = useCallback(
     (asset: Asset) => () => {
@@ -108,28 +127,35 @@ const OptionContainer = () => {
 
   return (
     <>
-      {selectedAsset ? (
-        <Flex alignItems="center" height="100%">
-          <DropDown
-            items={assetOptions}
-            selectedItemLabel={selectedAsset.currency}
-          />
-          <Text fontSize="md" marginStart="8px" align="center">
-            is currently worth $
-            {parseFloat(selectedAsset.spot_price).toFixed(2)}
-          </Text>
-        </Flex>
+      {isLoadingAssets ? (
+        <div>Loading assets...</div>
       ) : (
-        <OptionLoading />
+        selectedAsset && (
+          <Flex alignItems="center" height="100%">
+            <DropDown
+              items={assetOptions}
+              selectedItemLabel={selectedAsset.currency}
+            />
+            <Text fontSize="md" marginStart="8px" align="center">
+              is currently worth $
+              {parseFloat(selectedAsset.spot_price).toFixed(2)}
+            </Text>
+          </Flex>
+        )
       )}
 
-      {instruments.length && selectedAsset && selectedInstrument ? (
-        <OptionsDetail
-          selectedAsset={selectedAsset}
-          instruments={instruments}
-          selectedInstrument={selectedInstrument}
-          onInsturmentChange={handleInstrumentChange}
-        />
+      {!isLoadingAssets && selectedInstrument && selectedAsset ? (
+        <>
+          <OptionsDetail
+            selectedAsset={selectedAsset}
+            instruments={instrumentsMap[selectedAsset?.currency || ""] || []}
+            selectedInstrument={selectedInstrument}
+            onInsturmentChange={handleInstrumentChange}
+          />
+          <Box borderTop="1px" borderColor="#CBD5E0" marginTop="12px">
+            <OptionCard asset={selectedAsset} instrument={selectedInstrument} />
+          </Box>
+        </>
       ) : (
         <OptionLoading />
       )}

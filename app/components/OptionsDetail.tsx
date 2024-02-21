@@ -3,7 +3,7 @@ import { Asset, Instrument } from "./OptionContainer";
 import { DropDown } from "./DropDown";
 import { Flex, MenuItem, Text } from "@chakra-ui/react";
 
-function convertEpochToMonthDay(epochTimestamp: number): string {
+export function convertEpochToMonthDay(epochTimestamp: number): string {
   const date = new Date(epochTimestamp * 1000); // Convert seconds to milliseconds
   const month = date.toLocaleString("en-US", { month: "long" });
   const day = date.getDate();
